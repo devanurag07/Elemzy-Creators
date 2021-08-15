@@ -1,0 +1,44 @@
+##############
+POST http://127.0.0.1:8000/api/auth/login
+Content-Type: application/json
+
+{
+    "email":"sakshiverma@gmail.com",
+    "password":"anu18"
+}
+
+
+
+#############
+POST http://127.0.0.1:8000/apic/creator/course/
+Authorization:Token 1457588bc85b2f82bc558e929e5f0aef7e891975013ffeaa6a0fc5264463f740
+Content-Type: application/json
+
+{
+    "title":"Course Name",
+    "price":""
+}
+
+
+#############
+POST  http://127.0.0.1:8000/apic/creator/course/video/
+Authorization:Token 1457588bc85b2f82bc558e929e5f0aef7e891975013ffeaa6a0fc5264463f740
+Content-Type: application/json
+
+
+
+#############
+POST http://127.0.0.1:8000/apic/creator/course/module/
+Authorization:Token 1457588bc85b2f82bc558e929e5f0aef7e891975013ffeaa6a0fc5264463f740
+Content-Type: application/json
+
+
+
+
+
+
+#############
+GET http://127.0.0.1:8000/apic/creator/course/
+Authorization:Token b634f6f55eb2c8b2a6e3d62e5048d1ea569098d559f6ea68d81bb7cd7bc0fd2c
+Content-Type: application/json
+
