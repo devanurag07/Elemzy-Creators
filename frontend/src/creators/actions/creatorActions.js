@@ -65,6 +65,7 @@ export const createModule = async (module_data) => {
     const createdModule = resp.data;
     return createdModule;
   } catch (err) {
+    console.log(err.response.data);
     if (err.response.data) {
       if (err.response.data.errors) {
         return null;
@@ -75,31 +76,28 @@ export const createModule = async (module_data) => {
   }
 };
 
-export const createVideo = (
-  videoData,
-  setVideoData,
-  setReqStatus,
-  setFormErrors
-) => {
+export const createVideo = async (videoData) => {
   const config = getTokenConfig();
 
-  axios
-    .post(`${API_URL}/apic/creator/course/video/`, videoData, config)
-    .then((resp) => {
-      if (resp.status == 201) {
-        const addedVideo = resp.data;
-        setVideoData(addedVideo);
-        setReqStatus(201);
-      }
-    })
-    .catch((err) => {
-      if (err.response.data) {
-        if (err.response.data.errors) {
-          const errors = err.response.data.errors;
-          setFormErrors(errors);
-        }
-      }
-    });
+  // For Handling File Uploads
+  const videoFormData = new FormData();
+  for (let field in videoData) {
+    const fieldValue = videoData[field];
+    videoFormData.append(field, fieldValue);
+  }
+
+  try {
+    const resp = await axios.post(
+      `${API_URL}/apic/creator/course/video/`,
+      videoFormData,
+      config
+    );
+
+    const createdVideo = resp.data;
+    return createdVideo;
+  } catch (err) {
+    return null;
+  }
 };
 
 export const loadCreatorsData = () => {

@@ -50,10 +50,13 @@ urlpatterns = [
         "api/password_reset/",
         include("django_rest_passwordreset.urls", namespace="password_reset"),
     ),
-    url(r"^(?:.*)/?$", TemplateView.as_view(template_name="index.html")),
     # path(
     #     "passwordreset/verifytoken/",
     #     views.CustomPasswordTokenVerificationView.as_view(),
     #     name="password_reset_verify_token",
     # ),
 ]+static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
+
+
+urlpatterns.append(
+    url(r"^(?:.*)/?$", TemplateView.as_view(template_name="index.html")),)

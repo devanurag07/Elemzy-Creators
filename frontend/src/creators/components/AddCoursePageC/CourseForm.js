@@ -1,4 +1,4 @@
-import React, { useRef, useState } from "react";
+import React, { useRef, useState, useEffect } from "react";
 import {
   TextField,
   Typography,
@@ -9,11 +9,16 @@ import {
   Dialog,
   DialogContent,
   DialogTitle,
+  DialogActions,
 } from "@material-ui/core";
 import ModuleForm from "./ModuleForm";
 import { produce } from "immer";
 import ModuleComponent from "./ModuleComponent";
-import { createCourse, createModule } from "../../actions/creatorActions";
+import {
+  createCourse,
+  createModule,
+  createVideo,
+} from "../../actions/creatorActions";
 
 const useStyles = makeStyles((theme) => ({
   root: {
@@ -44,13 +49,29 @@ const useStyles = makeStyles((theme) => ({
   moduleContainer: {
     marginTop: "1em",
   },
+
+  dialogBoxStyles: {
+    "& .creating": {
+      color: "#7e11b5",
+    },
+    "& .created": {
+      color: "#0b86c1",
+    },
+    "& ul li": {
+      paddingLeft: "20px",
+    },
+    "& *": {
+      fontFamily: "Poppins",
+    },
+    "& .reqStatus": {
+      textTransform: "uppercase",
+    },
+  },
 }));
 
 const CourseForm = () => {
   const classes = useStyles();
   const inputRef = useRef(null);
-
-  const [moduleFormOpen, setModuleFormOpen] = useState(false);
 
   const courseInitData = {
     name: "",
@@ -66,7 +87,13 @@ const CourseForm = () => {
     ],
   };
 
+  const [moduleFormOpen, setModuleFormOpen] = useState(false);
   const [courseData, setCourseData] = useState(courseInitData);
+  const [courseFormErrors, setCourseFormErrors] = useState({});
+  const [courseStatusData, setCourseStatus] = useState({
+    modules: [],
+  });
+  const [statusDialogOpen, setStatusDialogOpen] = useState(true);
 
   const addModule = (module_name, module_desc) => {
     const newModule = {
@@ -95,6 +122,56 @@ const CourseForm = () => {
     setCourseData(newState);
   };
 
+  const addVideoReqStatus = (moduleIndex, videoStatusObj) => {
+    setCourseStatus((prevState) => {
+      const newState = produce(prevState, (draft) => {
+        const modules = draft.modules;
+        for (let mod of modules) {
+          if (mod.idx == moduleIndex) {
+            mod.videos = [...mod.videos, videoStatusObj];
+          }
+        }
+      });
+
+      return newState;
+    });
+  };
+
+  const setVideoReqStatus = (moduleIndex, videoIndex, status) => {
+    setCourseStatus((prevState) => {
+      const newState = produce(prevState, (draft) => {
+        const modules = draft.modules;
+        for (let mod of modules) {
+          if (mod.idx == moduleIndex) {
+            const videos = mod.videos;
+            for (let video of videos) {
+              if (video.idx == videoIndex) {
+                video.status = status;
+              }
+            }
+          }
+        }
+      });
+
+      return newState;
+    });
+  };
+
+  const setModuleReqStatus = (moduleIndex, moduleStatus) => {
+    setCourseStatus((prevState) => {
+      const newState = produce(prevState, (draft) => {
+        const modules = draft.modules;
+        for (let mod of modules) {
+          if (mod.idx == moduleIndex) {
+            mod.status = moduleStatus;
+          }
+        }
+      });
+
+      return newState;
+    });
+  };
+
   const uploadCoverClickHandler = () => {
     inputRef.current.click();
   };
@@ -106,13 +183,8 @@ const CourseForm = () => {
     setCourseData({ ...courseData, [inputFieldName]: inputFieldValue });
   };
 
-  const [createCourseData, setCreatedCourseData] = useState(null);
-  const [courseReqStatus, setCourseReqStatus] = useState(null);
-  const [courseFormErrors, setCourseFormErrors] = useState({});
-
-  const [courseStatusData, setCourseStatus] = useState({ modules: [] });
-
   const onSubmit = async () => {
+    // Course Data to Submit
     const courseJson = {
       title: courseData.name,
       description: courseData.description,
@@ -120,27 +192,99 @@ const CourseForm = () => {
       learning_points: courseData.learning_points,
     };
 
-    setCourseStatus({
-      ...courseStatusData,
-      courseName: "",
-    });
-    const createdCourse = await createCourse(courseJson, setCourseFormErrors);
-    if (createdCourse !== null) {
-      const modules = courseData.modules;
+    // Opening dialog which shows process
+    setStatusDialogOpen(true);
 
-      for (let module of modules) {
-        const moduleJson = {
-          title: module.title,
-          description: module.description,
-          course: createdCourse.pk,
+    setCourseStatus((prevState) => {
+      return {
+        ...prevState,
+        courseName: courseData.name,
+        status: "creating",
+      };
+    });
+
+    const createdCourse = await createCourse(courseJson, setCourseFormErrors);
+
+    if (createdCourse !== null) {
+      setCourseStatus((prevState) => {
+        return {
+          ...prevState,
+          status: "created",
         };
+      });
+
+      // Modules
+      // Getting All Modules
+      const modules = courseData.modules;
+      let moduleIdx = 0;
+
+      for (let module_ of modules) {
+        moduleIdx += 1;
+
+        const moduleJson = {
+          title: module_.name,
+          description: module_.description,
+          course: createdCourse.id,
+        };
+
+        // Setting Module Status To Creating --
+
+        setCourseStatus((prevState) => {
+          return {
+            ...prevState,
+            modules: [
+              ...prevState.modules,
+              {
+                moduleName: module_.name,
+                status: "creating",
+                idx: moduleIdx,
+                videos: [],
+              },
+            ],
+          };
+        });
+        // x -- Setting Module Status To Creating
 
         const createdModule = await createModule(moduleJson);
 
+        if (createdModule !== null) {
+          setModuleReqStatus(moduleIdx, "created");
+
+          const videos = module_.videos;
+          let vidIdx = 0;
+
+          for (let video of videos) {
+            vidIdx += 1;
+            const videoJson = {
+              title: video.title,
+              video: video.video,
+              module: createdModule.id,
+            };
+
+            // Sending Request
+            addVideoReqStatus(moduleIdx, {
+              idx: vidIdx,
+              videoName: video.title,
+              status: "creating",
+            });
+
+            const createdVideo = await createVideo(videoJson);
+            if (createVideo !== null) {
+              setVideoReqStatus(moduleIdx, vidIdx, "created");
+            }
+          }
+        }
         // const
       }
 
       // addModule();
+    } else {
+      setCourseStatus((prevState) => {
+        return {
+          ...prevState,
+          status: "failed",
+        };
+      });
     }
     // console.log(createdCourse);
   };
@@ -264,22 +408,31 @@ const CourseForm = () => {
       </Button>
 
       {/* Course Creation Status Board */}
-      <Dialog open={true} maxWidth="md">
+      <Dialog
+        open={statusDialogOpen}
+        maxWidth="md"
+        className={classes.dialogBoxStyles}
+      >
         <DialogContent>
           <div
             className={courseStatusData.status ? courseStatusData.status : ""}
           >
+            <span className="reqStatus">{courseStatusData.status}</span> &nbsp;
+            Course - &nbsp;
             {courseStatusData.courseName
               ? courseStatusData.courseName
               : "No course creating"}
           </div>
           <ul>
             {courseStatusData.modules.map((module_) => {
-              const videoes = module_.videoes ? module_.videoes : [];
+              const videoes = module_.videos ? module_.videos : [];
 
+              console.log(videoes);
               return (
                 <li>
                   <div className={module_.status ? module_.status : ""}>
+                    <span className="reqStatus">{module_.status}</span> &nbsp;
+                    Module - &nbsp;
                     {module_.moduleName
                       ? module_.moduleName
                       : "No module selected"}
@@ -288,6 +441,8 @@ const CourseForm = () => {
                         return (
                           <li>
                             <div className={video.status}>
+                              <span className="reqStatus">{video.status}</span>
+                              &nbsp; Video - &nbsp;
                               {video.videoName
                                 ? video.videoName
                                 : "No video selected"}
@@ -302,6 +457,22 @@ const CourseForm = () => {
             })}
           </ul>
         </DialogContent>
+        <DialogActions>
+          <Grid container justify="space-between">
+            <Grid item sm={1}></Grid>
+            <Grid item sm></Grid>
+            <Grid item sm={4}>
+              <Button
+                variant="outlined"
+                color="secondary"
+                onClick={() => setStatusDialogOpen(false)}
+              >
+                Close
+              </Button>
+            </Grid>
+          </Grid>
+          <Button></Button>
+        </DialogActions>
       </Dialog>
     </div>
   );
